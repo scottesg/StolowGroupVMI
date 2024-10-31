@@ -1,5 +1,3 @@
-# DAVIS v7 - 20241023
-
 import numpy as np
 import scipy as sp
 import polarTransform as pt

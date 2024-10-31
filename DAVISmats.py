@@ -1,5 +1,3 @@
-# DAVIS v7 - 20241023
-
 import numpy as np
 from math import sqrt
 from scipy.special import legendre
