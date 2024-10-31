@@ -434,7 +434,7 @@ def vmiiabel_stk(stats, msize, angstep, radstep, smoothing):
                 np.flipud((imin + np.fliplr(imin)))) / 4
         iminstk[i] = imin
         (f, delta, iminpol[i], imoutpol[i], imout[i]) = DAVIS.transform(imin, LMatrix, ms, angstep, radstep)
-        Ir[i] = f[0]
+        Ir[i] = f[0]*r
         print("{}\t{}ps\t{}\t{}".format(i, delays[i], np.sum(imin), np.sum(Ir[i,:])))
     
     stats['imstks']['iminstk'] = iminstk

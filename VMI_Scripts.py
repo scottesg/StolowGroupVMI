@@ -54,7 +54,7 @@ vmistats = vmicropdifstk(vmistats)
 
 #%%
 
-vmistats = vmirotate(vmistats, 62.5+90, lockangle=True)
+vmistats = vmirotate(vmistats, 62.5, lockangle=True)
 #vmistats = vmirotate(vmistats, 70)
 
 #%%
@@ -75,7 +75,7 @@ imout = vmistats['imstks']['idifstk']
 
 fig, axs = plt.subplots(2,2)
 
-i = 4
+i = 20
 
 axs[0,0].imshow(imin[i])
 axs[0,1].imshow(iminpol[i])
@@ -90,7 +90,7 @@ plt.plot(r, Ir[i])
 
 #%% plot TR-PES (r[pix],t[ps])
 
-plot3d = True
+plot3d = False
 
 Ir = vmistats['Ir']
 delays = vmistats['delays']

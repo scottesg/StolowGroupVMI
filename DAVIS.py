@@ -120,7 +120,7 @@ def transform(imin, LMatrix, ms, dtdeg, dr):
 
 # Generate a mask to pull out points between two radii to use for determining
 # the rotation angle
-def create_circular_mask(h, w, center=None, rin=None, rout=None):
+def create_circular_mask(h, w, center=None, rin=0, rout=None):
 
     if center is None: # use the middle of the image
         center = [int(w/2), int(h/2)]
