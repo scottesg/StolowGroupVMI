@@ -83,7 +83,9 @@ def transform(imin, LMatrix, ms, dtdeg, dr):
                                    angleSize=alen,
                                    radiusSize=rlen)[0]
     
-    # Perform the Legendre expansion of the polar image for each r value:
+    # Perform the Legendre expansion of the polar image for each r value
+    # This is equation 16 in the paper
+    # Note that 2n here = k in the paper since I am only counting even Legendre terms
     apw = np.deg2rad(dtdeg) # Angular pixel width (rad)
     angs = np.linspace(0, np.pi, alen)
     sin = np.abs(np.sin(angs))
@@ -93,21 +95,25 @@ def transform(imin, LMatrix, ms, dtdeg, dr):
             deltas[n, r] = sum(sin * LMatrix[n] * impol[:,r])
         deltas[n] *= apw * (4*n + 1)/2
         
-    # Transform the Legendre coefficients using the M matrices:
+    # Transform the Legendre coefficients using the M matrices
+    # This is equation 19 in the paper
+    # Note that 2n here = k in the paper since I am only counting even Legendre terms
+    # and i here = k+2i in the paper
     f_values = np.zeros((NumLegendreTerms, rlen))
-    for k in range(NumLegendreTerms - 1, -1, -1):
-        term = deltas[k]
-        for i in range(2 * k + 2, LegendreExpansionUpperLimit + 1, 2):
-            term -= np.matmul(ms[int(i / 2)][k][:rlen, :rlen], f_values[int(i / 2)])
-        f_values[k] = np.matmul(np.linalg.inv(ms[k][k][:rlen, :rlen]), term)
+    for n in range(NumLegendreTerms - 1, -1, -1):
+        term = deltas[n]
+        for i in range(2 * n + 2, LegendreExpansionUpperLimit + 1, 2):
+            term -= np.matmul(ms[int(i / 2)][n][:rlen, :rlen], f_values[int(i / 2)])
+        f_values[n] = np.matmul(np.linalg.inv(ms[n][n][:rlen, :rlen]), term)
     
-    # Reconstruct the image:
+    # Reconstruct the image
+    # This is the bottom equation in Figure 2 of the paper
     impolinv = np.zeros((alen, rlen))
     for r in range(0, rlen):
         for t in range(0, alen):
             impolinv[t, r] = np.dot(f_values[:, r], LMatrix[:, t])
             
-    # Transform back to Cartesian with the same shape as imin:
+    # Transform back to Cartesian with the same shape as imin
     imout_q12 = pt.convertToCartesianImage(impolinv, center ='bottom-middle',
                                            finalAngle = np.pi,
                                            finalRadius = radius, 
