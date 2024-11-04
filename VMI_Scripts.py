@@ -171,7 +171,7 @@ leg.set_draggable(1)
 
 #calfile = '20190612_01_xenon_cal'
 calfile = '03_xenon.vmical_ml.txt'
-plot3d = True
+plot3d = False
 upperlimit_percent_2d = 100
 
 Ir = vmistats['Ir']
@@ -192,7 +192,7 @@ radius = 170
 
 K = posE / radius**2 #0.002264
 
-KEs = np.arange(0, 1.1, 0.005)
+KEs = np.arange(0, 3.0, 0.005)
 bins = (KEs/K)**(0.5)
 
 Ir_ke = np.zeros((Ir.shape[0], len(bins)))
@@ -224,9 +224,9 @@ vmistats['Ir_ke'] = Ir_ke
 vmistats['ke'] = KEs
 vmistats['K'] = K
 
-#fout = outpath + "/" + vmistats['subfolder'] + ".trpes.ke.csv"
-#out = np.vstack((np.hstack((0, KEs)), np.vstack((delays, Ir_ke.T)).T))
-#np.savetxt(fout, out, fmt='%.2f', delimiter=",")
+fout = outpath + "/" + vmistats['subfolder'] + ".trpes.ke.csv"
+out = np.vstack((np.hstack((0, KEs)), np.vstack((delays, Ir_ke.T)).T))
+np.savetxt(fout, out, fmt='%.2f', delimiter=",")
 
 #%% TR-PES (ke[eV],t[ps]): plot time evolutions of few energy-slices 
 
