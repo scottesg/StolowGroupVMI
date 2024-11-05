@@ -226,7 +226,7 @@ vmistats['K'] = K
 
 fout = outpath + "/" + vmistats['subfolder'] + ".trpes.ke.csv"
 out = np.vstack((np.hstack((0, KEs)), np.vstack((delays, Ir_ke.T)).T))
-np.savetxt(fout, out, fmt='%.2f', delimiter=",")
+np.savetxt(fout, out, fmt='%.4f', delimiter=",")
 
 #%% TR-PES (ke[eV],t[ps]): plot time evolutions of few energy-slices 
 

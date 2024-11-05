@@ -4,3 +4,6 @@ DAVIS/
 # Python temporary files
 TRPES_Simulator_23.2/__pycache__/
 __pycache__/
+
+# TRPES_Simulator temporary files
+TRPES_Simulator_23.2/.csv
