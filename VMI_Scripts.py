@@ -192,7 +192,7 @@ radius = 170
 
 K = posE / radius**2 #0.002264
 
-KEs = np.arange(0, 3.0, 0.005)
+KEs = np.arange(0, 1.12, 0.005)
 bins = (KEs/K)**(0.5)
 
 Ir_ke = np.zeros((Ir.shape[0], len(bins)))
