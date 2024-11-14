@@ -1,0 +1,222 @@
+VMI analysis toolbox functions list (v.20160809)
+---------------------------------------
+
+
+vmigetstats.m    
+-----------------------
+loads the folder of vmi images into memory
+vmistats is the big structure that keeps all the fields pertinent 
+to loading and preprocessing of the data. Memory-efficiency is sacrificed 
+to clarity.
+Usage:
+folderin='c:\mydatafolder\dataset1';
+scans=[1:4,6:10];
+vmistats = vmigetstats(folderin, scans);
+
+
+vmiplottraces4.m  
+----------------------
+takes the traces information from the vmistats structure and plots for 
+convenience of assessing which scans might need to be dropped. 
+Use datapicker tool to see what file each of the data point corresponds to.
+vmiplottraces3 offers somewhat alternative presentation
+Usage:    
+vmiplottraces4(vmistats);
+
+
+vmiplotaverages.m
+----------------------
+takes some avarage images from the vmistructure and plots for convenience 
+of assessing what background is worth subtracting (beam off/pump off/probe off/none)
+Usage:
+vmiplotaverages(vmistats);
+
+
+vmibgsubtr.m
+----------------------
+subracts background (beam off/pump off/probe off/none)
+(adds .difstk field to the vmistats (.stk(s) -> .difstk))
+Usage:
+%'peb' is a binary string defining what background needs to be subtracted (pumP,probE,Beam) 
+%peb='000'; %no bg subtraction
+%peb='001'; %subtract 'nobeam'
+%peb='100'; %subtract 'pumponly'
+%peb='101'; %subtract 'pumponly' and 'nobeam'
+%peb='010'; %subtract 'probeonly'
+%peb='011'; %subtract 'probeonly' and 'nobeam'
+%peb='111'; %subtract 'pumponly','probeonly' and 'nobeam'
+peb='101';
+vmistats=vmibgsubtr(vmistats,peb);
+
+
+vmicropdifstk.m
+----------------------
+crops the "vmistats.difstk" images to a square image suitable for abel inversion
+N.B.The function makes use of the image center position stored in the vmistats structure
+Usage:
+vmistats=vmicropdifstk(vmistats,[456 456]); % Note: keep the size EVEN NUMBER
+%or
+vmistats=vmicropdifstk(vmistats); %will chop the largest possible square image
+(given existing picture size and center position)
+
+
+vmirotatedifstk.m
+----------------------
+rotates the "vmistats.difstk" images so that symmetry axis is vertical 
+You need to provide the _approximate_ rotation angle. The exact angle will 
+be automatically searched for in the proximity of the "suggested' angle [deg]
+Usage:
+vmistats=vmirotate(vmistats,110); 
+%or use this syntax to preview if the angle is right [deg] 
+vmirotate(vmistats,100,'preview'); 
+
+
+
+vmiexport.m         
+----------------------
+exports the difstk as a to .difstk (one file) or .bin (set of files) format 
+for further analysis in Doug's GUI
+Usage:
+%exportedto=vmiexport(vmistats,folderout,'bin');
+exportedto=vmiexport(vmistats,folderout,'difstk');
+if ~isempty(exportedto), disp(exportedto);end;
+
+
+vmiiabel_stk.m
+----------------------
+inverse Abel using Ben's code. Extract TR-PES. 
+Usage:
+vmistats=vmiiabel_stk(vmistats);
+
+
+flattenbg.m
+----------------------
+removes time-independent background as defined by trpes between delay1 and delay2 [ps]
+Usage:
+%Ir=flattenbg(Ir,delay1,delay2,delays);
+Ir=flattenbg(Ir,-1,-0.2,delays);
+Another example:
+vmistats=vmiiabel_stk(vmistats);
+Ir=flattenbg(vmistats.Ir,-1,-0.2,vmistats.delays);
+surf(vmistats.r,vmistats.delays,Ir);
+
+
+vmifitbeta_stk.m
+----------------------
+fit beta parameters to the stack of abeli-inverted vmi images
+based on Dougs "betaclc2.m" modded for speed and usage convenience
+betaout=vmifitbeta_stk(stkin,rrange)
+where 
+stk = stack of Abel inverted images, created by "vmiiabel_stk.m" 
+        (for example: stk = vmistats.imstks.idifstk;) 
+        The stack can either be a cell array of images stk{delaysN}(sizeY,sizeX) 
+        that contains multiple images 
+        or just a matrix containing single image stk(sizeY,sizeX). 
+rrange = vector of radial distances for the regions to be fitted
+betaout = 2D or 3D array of betas:
+        When only one image supplied and length(rrange)==2 
+            then betaout=[b0, b2, b4, b6]
+        When only one image supplied and length(rrange)>2 
+            then betaout=betaout(length(rrange)-1,[b0, b2, b4, b6])
+        When more than one image provided (that is delaysN>1) at the input
+        but length(rrange)==2
+            then betaout=betaout(delaysN,[b0, b2, b4, b6])
+        When more than one image provided (that is delaysN>1) at the input 
+            then the first index is image number, 
+            i.e. betaout=betaout(delaysN,length(rrange)-1,[b0, b2, b4, b6])
+        
+Requires: vmifitbeta_img.m (modded version of Doug's "betaclc2.m")
+          img2pol_bjorn.m (from matlabcentral by Bjorn Gustavsson)
+
+Usage:
+rrange=[135,145]; %in pixels
+%rrange=[100,120,135,145];
+stk = vmistats.imstks.idifstk;
+beta = vmifitbeta_stk(stk,rrange);
+
+
+
+
+iabel2D_ab.m   
+----------------------
+my mod of Ben's image inversion function (quick-N-dirty)
+imgsym.m      helper function
+iabel.m       helper function
+
+
+smoothimg.m    
+----------------------
+Doug's function to smooth image
+
+
+threshold1Darray.m 
+----------------------
+finds fractional index corresponding to position of value t in monotoneous array delays
+Usage:
+it=threshold1Darray_v(t,delays)
+
+
+threshold1Darray_v.m 
+----------------------
+finds fractional indices corresponding to position of values ta in monotoneous array delays
+Usage:
+ita=threshold1Darray_v(ta,delays)
+
+
+imcentre.m
+----------------------
+finds centre of a vmi rings in an image
+
+Other dependancies:
+----------------------
+str2delay.m
+conv_fft2.m
+exindex.m
+circle.m
+annroimask.m
+isrow.m
+flattenbg.m
+
+
+getxcorr.m
+----------------------
+a contraption to fit gaussian to an electron yield evolution with pp delay 
+in the dataset located in a folder. When no folder spacified - a dialog 
+opens invitiing to choose a folder  
+Dependancies:
+fitxcorr2.m
+gaussian.m
+
+
+
+
+
+script-to-preprocess-vmi-data_20160809b.m
+----------------------
+script where all these are tied together
+
+
+==========================================================================
+
+
+function [betaout fitdata]=vmifitbeta_img(yin,ri,center,th1i,th2i,dthi)
+----------------------
+
+function vmistats=vmidetgaincorr(vmistats,detgainprofile)
+
+
+
+
+%TODO:
+%[done](1)proper BG subtraction algorithm for imgp/imge
+%[done](2)autorotate the image so that polatization axis run vertically
+%[+/-](3)export preprocessed data so that it could be loaded in Doug's gui 
+%[done](4)inversion using ben's code
+%(5)inversion using doug's pbasex code
+%[done](6)extract trpes from inverted data; rebin into equidistant bins
+%[done](7)apply energy conversion
+%[+/-](8)export as PESview-compatible .CSV and z20-compatible .DAT
+%[done](9)subtract signal at delays<0 as a background 
+%[done](10)fit beta(ke,delay)
+%[+/-](11)export to Edinburgh's format
+%(12)?
