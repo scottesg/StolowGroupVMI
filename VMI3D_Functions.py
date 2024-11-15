@@ -302,7 +302,6 @@ def xydetmap(points, gsize, tilelim, xrange, yrange, plot=True):
     c = c1 & c2 & c3 & c4
     
     points = points[c]
-    points = points[c]
     points = points[points[:,0].argsort()]
     
     xval = np.linspace(xrange[0], xrange[1], gsize+1)
@@ -1205,24 +1204,6 @@ def rbin(points, nr, dim, cen):
         tilepoints = points[indx[i]:indx[i+1]]
         binpoints.append(tilepoints)
     return binpoints
-
-# Generate single-hit response from pickoff data
-# using traces corresponding to supplied set of points
-def pts2pr(pts, wfms, blshift, h, ntrace=-1):
-     
-    # Sort
-    pts = pts[pts[:,4].argsort()]
-    pts = np.flip(pts, 0)
-    
-    traces = []
-    # Generate list of traces corresponding to pts
-    for i in range(0, len(pts)):
-        stk = int(pts[i, 5])
-        stkn = int(pts[i, 6])
-        traces.append(wfms[stk][stkn])
-    
-    response = genPR(traces, blshift, h, ntrace=ntrace)
-    return response
 
 def weighted_average(values, weights):
     average = np.average(values, weights=weights)
