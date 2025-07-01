@@ -1,6 +1,9 @@
 # DAVIS matrices
 DAVIS/
 
+# Thesis
+thesis/
+
 # Python temporary files
 TRPES_Simulator_23.2/__pycache__/
 __pycache__/

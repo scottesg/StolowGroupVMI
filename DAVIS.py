@@ -148,8 +148,8 @@ def prepimage(img, rin=0, rout=500, rotsm=5, imsm=2,
     if len(cen)==1:
         conv = fftconvolve(img, img)
         (x0, y0) = np.where(conv==np.max(conv))
-        x0 = np.int(x0[0]/2)
-        y0 = np.int(y0[0]/2)
+        x0 = int(x0[0]/2)
+        y0 = int(y0[0]/2)
         print("Centre: {}, {}".format(x0,y0))
     else:
         x0, y0 = cen
@@ -207,7 +207,7 @@ def prepimage(img, rin=0, rout=500, rotsm=5, imsm=2,
         rotanglei = np.where(align[:,1]==np.min(align[:,1]))
         rotangle = align[rotanglei[0],0][0] - 90
 
-    if plot: print("Image will be rotated by {} deg".format(rotangle))    
+    print("Image will be rotated by {} deg".format(rotangle))    
     img = imutils.rotate(img, rotangle)
     
     if plot:

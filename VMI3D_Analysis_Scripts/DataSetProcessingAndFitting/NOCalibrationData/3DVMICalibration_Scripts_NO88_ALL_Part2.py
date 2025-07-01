@@ -1,7 +1,7 @@
 #%% Imports
 
 import os
-os.chdir(r'C:\Users\Scott\Python\VMI\src')
+os.chdir(r'../../..')
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -22,7 +22,7 @@ dToF = 0.05 # 50 ps time resolution
 fs = 6 # fontsize
 plt.rcParams['figure.dpi'] = 100
 
-name = "Ssu"
+name = "Ss"
 
 loadpath = r"C:\Users\Scott\Python\VMI\data\20240418_VMI3DPaperData2\213266/"
 paths = [loadpath+"213266_20231213_160902/",

@@ -45,10 +45,10 @@ def get_M(m, n, size, dtdeg, dr, save=False):
             for k in range(i, size):
                 j = 2 * k + 1
                 term = - (j ** 2 - rm ** 2) ** (3/2)
+                # fixed error in DAVIS paper for above line:
+                # Changed "+ rm ** 2" to "- rm ** 2"
                 if k != i:
                     term += (j ** 2 - rp ** 2) ** (3/2)
-                # fixed error in DAVIS paper for above line:
-                # Changed "+ rp ** 2" to "- rp ** 2"
                 m_matrix[i, k] = dr * apw / (3 * j ** 3) * term
 
         elif m == 4 and n == 4:

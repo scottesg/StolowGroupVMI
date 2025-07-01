@@ -8,7 +8,7 @@ from scipy.optimize import least_squares
 from scipy.signal import correlate
 from VMI3D_IO import readwfm, readctr, genT
 from VMI3D_Fitting import res_mgauss, mgauss, fit_gauss
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter, maximum_filter
 
 J_PER_EV = 1.602176565e-19
 E_MASS = 9.1093837e-31 # kg
@@ -173,6 +173,47 @@ def getpeaks(trace, response, h, snr, filt, nmax, t, ef,
     
     if skip: return None
     return out, t, trace, wd
+
+# roidim currently semi-hardocded
+def extractrois(img, smth, size, threshold, maxrois, roidim):
+    
+    dim = len(img)
+    
+    # Smooth and subtract projections
+    imgs = gaussian_filter(img.astype(float), smth)
+    pjx = np.mean(imgs,0)
+    imgs = imgs - pjx
+    pjy = np.mean(imgs,1)
+    imgs = imgs - pjy[:,None]
+
+    imgsmx = maximum_filter(imgs, size)
+    maskmx = (imgs == imgsmx)
+    maskth = (imgsmx > threshold)
+    maskmx[~maskth] = False
+    
+    labeled, num = ndimage.label(maskmx)
+    slices = ndimage.find_objects(labeled)
+    
+    rois = np.zeros((maxrois, roidim, roidim), dtype=np.single)
+    xpos = np.zeros(maxrois, dtype=np.uint16)
+    ypos = np.zeros(maxrois, dtype=np.uint16)
+    
+    nrois = 0
+    for dx,dy in slices:
+        x_center = int((dx.start + dx.stop - 1)/2)
+        y_center = int((dy.start + dy.stop - 1)/2)
+        
+        if (x_center<15) or (x_center>dim-16) or (y_center<15) or (y_center>dim-16):
+            continue
+        
+        xpos[nrois] = x_center
+        ypos[nrois] = y_center
+        rois[nrois] = img[x_center-15:x_center+16, y_center-15:y_center+16]
+        nrois += 1
+        
+        if nrois >= (maxrois-1): break
+    
+    return xpos, ypos, rois, nrois, imgs
 
 def timecorrect(path, bk, rpr, rpos, sgn, snr, dfitpt, sm, tracesize, ch2=False, debug=False):
 
@@ -491,9 +532,9 @@ def genBK(path, h, blpts, maxtraces=-1, dqdim=2048, ch2=False):
     return bk
 
 # Generate single-hit response from pickoff data
-def genPR(path, dqdim, bk, sgn, h1, h2, nppr, smth,
+def genPR(path, dqdim, bk, sgn, h1, h2, h3, nppr, smth,
           tc, rpr, f1, f2, fw, ntrace=-1, maxtraces=-1, loadfile=0, 
-          ch2=False, simple=True, debug=False):
+          ch2=False, simple=True, debug=False, shreturn=False):
     
     if loadfile>0:
         path = path.replace('*',str(loadfile))
@@ -511,12 +552,13 @@ def genPR(path, dqdim, bk, sgn, h1, h2, nppr, smth,
         maxtraces = len(data)
     
     if simple:
-        inds = genPRinds_Simple(data, sgn, bk, tc, rpr, smth, h1, h2, nppr, maxtraces, ntrace)
+        inds = genPRinds_Simple(data, sgn, bk, tc, rpr, smth, h1, h2, h3, nppr, maxtraces, ntrace)
     else:
         inds = genPRinds(data, sgn, bk, tc, rpr, smth, h1, h2, f1, f2, nppr, maxtraces, ntrace)
 
     c = len(inds)
     pr = np.zeros(len(data[0]))
+    shtraces = [] # for debugging
     for i in range(len(inds)):
         
         ind = inds[i]
@@ -556,10 +598,13 @@ def genPR(path, dqdim, bk, sgn, h1, h2, nppr, smth,
             if i>5: return -1
         
         pos = fit[1][2] + posr
-        pr += ndimage.shift(tmp, 1000-pos, mode='wrap', order=3)/c
+        pri = ndimage.shift(tmp, 1000-pos, mode='wrap', order=3)/c
+        pr += pri
+        shtraces.append(pri)
             
     print("Number of Samples: {}/{}".format(c, len(data)))
-    return pr
+    if shreturn: return pr, shtraces
+    else: return pr
 
 def genPRinds(wfms, sgn, bk, tc, rpr, smth, h1, h2, f1, f2, nppr, maxtraces, ntrace):
     
@@ -602,8 +647,8 @@ def genPRinds(wfms, sgn, bk, tc, rpr, smth, h1, h2, f1, f2, nppr, maxtraces, ntr
                         c = c + 1
     return inds
 
-def genPRinds_Simple(wfms, sgn, bk, tc, rpr, smth, h1, h2, nppr, maxtraces,
-                     ntrace, rprpos=1000):
+def genPRinds_Simple(wfms, sgn, bk, tc, rpr, smth, h1, h2, h3, nppr, maxtraces,
+                     ntrace, debug=False):
     
     inds = []
     c = 0
@@ -621,8 +666,14 @@ def genPRinds_Simple(wfms, sgn, bk, tc, rpr, smth, h1, h2, nppr, maxtraces,
         tmps = gaussian_filter(tmp, smth)
         peaks1 = find_peaks(tmps, h1)
         peaks2 = find_peaks(tmps, h2)
+        peaks3 = find_peaks(tmps, h3)
         
-        if (len(peaks1[0])==nppr) and (len(peaks2[0])==1):
+        if debug:
+            plt.plot(tmps)
+            plt.hlines([h1, h2, h3], 0, len(tmps))
+            if i > 5: break
+        
+        if (len(peaks1[0])==nppr) and (len(peaks2[0])==1) and (len(peaks3[0])==0):
             inds.append(i)
             c = c + 1
     
@@ -1209,3 +1260,28 @@ def weighted_average(values, weights):
     average = np.average(values, weights=weights)
     variance = np.average((values-average)**2, weights=weights)
     return (average, np.sqrt(variance))
+
+
+# Generate single-hit response from pickoff data
+#def genPR(path, dqdim, bk, sgn, h1, h2, nppr, smth,
+#          tc, rpr, f1, f2, fw, ntrace=-1, maxtraces=-1, loadfile=0, 
+#          ch2=False, simple=True, debug=False):
+
+# Generate single-hit response from pickoff data
+# using traces corresponding to supplied set of points
+def pts2pr(pts, wfms, dqdim, bk, sgn, h1, h2, h3, nppr, smth,
+           tc, rpr, f1, f2, fw, ntrace=-1, simple=True, shreturn=False):
+     
+    # Sort
+    pts = pts[pts[:,4].argsort()]
+    pts = np.flip(pts, 0)
+    
+    traces = []
+    # Generate list of traces corresponding to pts
+    for i in range(0, len(pts)):
+        stk = int(pts[i, 5])
+        stkn = int(pts[i, 6])
+        traces.append(wfms[stk][stkn])
+    
+    return genPR(traces, dqdim, bk, sgn, h1, h2, h3, nppr, smth,
+                 tc, rpr, f1, f2, fw, ntrace=ntrace, shreturn=shreturn)

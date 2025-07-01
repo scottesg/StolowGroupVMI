@@ -13,9 +13,8 @@ import random as rd
 
 # Constants
 
-datapath = r"C:\Users\Scott\Python\VMI\data\20240418_VMI3DPaperData2\213266/213266_ALL/"
-ke = 0.88  # eV, energy of ring
-keinner = 0.052
+datapath = r"C:\Users\Scott\Python\VMI\data\20240418_VMI3DPaperData2\213\213_150711_151615_141739/"
+ke = 2.05  # eV, energy of ring
 T0 = 29.5 # ns, put centre here
 dt = 32 # ns, width/2 of time range to look at
 plotdim = (1280, 400)
@@ -32,14 +31,10 @@ tl = [T0-dt, T0+dt] # time range
 fs = 7 # fontsize
 plt.rcParams['figure.dpi'] = 150
 
-loadpath = r"C:\Users\Scott\Python\VMI\data\20240418_VMI3DPaperData2\213266/"
-paths = [loadpath+"213266_20231213_160902/",
-         loadpath+"213266_20231213_161613/",
-         loadpath+"213266_20231213_162638/",
-         loadpath+"213266_20240125_144323/",
-         loadpath+"213266_20240125_145130/",
-         loadpath+"213266_20240207_134618/",
-         loadpath+"213266_20240207_135554/"]
+loadpath = r"C:\Users\Scott\Python\VMI\data\20240418_VMI3DPaperData2\213/"
+paths = [loadpath+"213_20240125_150711/",
+         loadpath+"213_20240125_151615/",
+         loadpath+"213_20240207_141739/"]
 
 for i in range(len(paths)):
     a = np.load(paths[i] + "data{}P_NC.npy".format(name))
@@ -66,7 +61,7 @@ fig = plt.figure()
 plt.pcolor(tb[:-1], rb[:-1], H.T/rb[:-1,np.newaxis], vmax=1.5, cmap="Greys")
 plt.xlabel("ToF (ns)")
 plt.ylabel("Radius (pixels)")
-plt.title("213+266 nm, 1-channel data")
+plt.title("213 nm, both-channel data")
 plt.colorbar()
 
 #%% r vs ToF covariance
@@ -99,25 +94,25 @@ if covshuffle:
     axU[0].set_xlabel("Time of Flight (ns)", labelpad=0, fontsize=fs+2)
     axU[0].tick_params(labelsize=fs)
     axU[0].text(10, 220, "Correlated", color="w")
-    axU[0].set_xlim([27, 33])
-    axU[0].set_ylim([0, 40])
+    axU[0].set_xlim([20, 40])
+    axU[0].set_ylim([0, 190])
      
     axU[1].pcolormesh(tmid, rmid, pthistU.T/pthistU.max(), cmap="seismic", norm=LogNorm(vmax=1, vmin=0.001))
     axU[1].set_xlabel("Time of Flight (ns)", labelpad=0, fontsize=fs+2)
     axU[1].tick_params(labelsize=fs)
     axU[1].text(10, 220, "Uncorrelated", color="w")
-    axU[1].set_xlim([27, 33])
-    axU[1].set_ylim([0, 40])
+    axU[1].set_xlim([20, 40])
+    axU[1].set_ylim([0, 190])
      
     axU[2].pcolormesh(tmid, rmid, (H-pthistU).T/(H-pthistU).max(), cmap="seismic", norm=LogNorm(vmax=1, vmin=0.001))
     axU[2].set_xlabel("Time of Flight (ns)", labelpad=0, fontsize=fs+2)
     axU[2].tick_params(labelsize=fs)
     axU[2].text(10, 220, "Covariance", color="w")
-    axU[2].set_xlim([27, 33])
-    axU[2].set_ylim([0, 40])
-
+    axU[2].set_xlim([20, 40])
+    axU[2].set_ylim([0, 190])
+    
 else:
-        
+    
     Ytt = []
     Yrr = []
     
@@ -173,10 +168,10 @@ else:
         argr = np.argmin(abs(np.sqrt(pt[i,0]**2+pt[i,1]**2)-rr))
         argt = np.argmin(abs(pt[i,2]-tt))
         cov.append(corrRT[argr,argt] - uncorrRT[argr,argt])
-    
+
     fig, axs = plt.subplots(2, 6, gridspec_kw={"hspace": 0.35, "left": 0.01, "right": 0.98, "bottom":0.02,
                                           "height_ratios": [6,1], "wspace":0.42, "width_ratios": [2,12,12,1,12,1]})
-     
+ 
     (ax_a, ax_c, ax_e, ax_g, ax_i, ax_k), (ax_b, ax_d, ax_f, ax_h, ax_j, ax_l) = axs
     plt.gcf().set_size_inches(8.5, 2.5)
     
@@ -268,28 +263,15 @@ plt.xlabel("ToF (ns)")
 plt.ylabel("Radius (pixels)")
 plt.colorbar()
 
-#%% Remove the duplicate signal
-
-# Before subtraction, for thesis
-np.savez(datapath + "data{}P_nosub.npz".format(name), H=H.T/rb[:-1,np.newaxis], t=tb[:-1], r=rb[:-1])
-
-idx = 36 # position of second ring
-H5 = 0.30*(np.roll(H, idx, axis=0)) # shifted and scaled signal to subtract
-H5[:idx,:]=0
-
-# subtraction
-H = np.where(H-H5>=0, H-H5, 0)
-
-fig = plt.figure()
-plt.pcolor(tb[:-1], rb[:-1], H.T/rb[:-1,np.newaxis],vmax=2.,cmap="Greys")#, norm=LogNorm(), cmap="winter")
-plt.xlabel("ToF (ns)")
-plt.ylabel("Radius (pixels)")
-plt.title("After Subtraction")
-plt.colorbar()
-
-# save processed data
+# save covariance results
 np.save(datapath + "data{}P.npy".format(name), pt)
 np.savez(datapath + "data{}P.npz".format(name), H=H.T/rb[:-1,np.newaxis], t=tb[:-1], r=rb[:-1])
+
+
+
+# DID NOT FINISH AFTER THIS
+
+
 
 #%% Plots
 

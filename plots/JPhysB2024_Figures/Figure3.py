@@ -176,6 +176,6 @@ ax4.plot(pfit3[0]-T0, res3, color='b', lw=1, marker='.', markersize=2, label="2.
 ax4.set_xlim(-4.2, 4.4)
 ax4.text(.02, .95, '(c)', ha='left', va='top', transform=ax4.transAxes, fontsize=fs+2)
 ax4.legend(fontsize=fs-2, loc=3).draw_frame(False)
-ax4.set_ylabel("Residuals (a.u.)", fontsize=fs, labelpad=0)
+ax4.set_ylabel("Deviations (a.u.)", fontsize=fs, labelpad=0)
 ax4.set_xlabel("Time, t (ns)", fontsize=fs, labelpad=0)
 

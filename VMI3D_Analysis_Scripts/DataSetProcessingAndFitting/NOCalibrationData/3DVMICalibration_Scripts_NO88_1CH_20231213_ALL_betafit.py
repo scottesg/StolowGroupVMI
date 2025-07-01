@@ -1,7 +1,7 @@
 #%% Imports
 
 import os
-os.chdir(r'C:\Users\Scott\Python\VMI\src')
+os.chdir(r'../../..')
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,7 +18,7 @@ covshuffle = True # shuffle based covariance method
 name = "S"
 if covshuffle: name = "Ss"
 
-path = "mpol{}900.npz".format(name)
+path = "mpol{}900M.npz".format(name)
 
 data = np.load(datapath + path)
 K = np.load(datapath + "K{}.npy".format(name))

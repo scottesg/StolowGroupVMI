@@ -15,7 +15,7 @@ from VMI3D_PeakFinding import gauss, fitting_routine, find_arg
 # Constants:
 datapath = r"C:\Users\Scott\Python\VMI\data/"
 dt = 0.25 # ns, sampling interval
-refwidth = 1.7 # ns, reference width
+refwidth = 1.7 # ns, reference width fwhm
 gausstresh = 0.3 # sets height threshold for reference+background peak
 t0 = 529 # position of reference peak
 tracelen = 4096
@@ -206,7 +206,7 @@ idx0 = 0 # starting trace within stack
 nsize = 5 # number of runs to process
 
 find_ref = False
-debug = False
+debug = True
 if debug:
     nbad = 0
     nsize = 1

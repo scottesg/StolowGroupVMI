@@ -1,7 +1,7 @@
 #%% Imports
 
 import os
-os.chdir(r'C:\Users\Scott\Python\VMI\src')
+os.chdir(r'../../..')
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -170,7 +170,7 @@ PHI, THETA, EE = np.meshgrid(phi, theta, E, indexing="ij")
 
 # rotation to correct for laser pointing angle
 # a(Rx), b(Ry), c(Rz)
-a, b, c = 9, 0, 0
+a, b, c = 0, 0, 0
 ca = np.cos(a*np.pi/180)
 sa = np.sin(a*np.pi/180)
 cb = np.cos(b*np.pi/180)

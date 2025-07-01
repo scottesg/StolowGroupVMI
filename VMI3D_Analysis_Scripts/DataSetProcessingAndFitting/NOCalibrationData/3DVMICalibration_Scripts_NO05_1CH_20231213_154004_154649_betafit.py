@@ -1,7 +1,7 @@
 #%% Imports
 
 import os
-os.chdir(r'C:\Users\Scott\Python\VMI\src')
+os.chdir(r'../../..')
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,9 +14,9 @@ from matplotlib.colors import LogNorm
 
 datapath = r"C:\Users\Scott\Python\VMI\data\20240418_VMI3DPaperData2\266/1CH_154004_154649/"
 
-name = "Ssu"
+name = "Ss"
 
-path = "mpol{}6.900rc.npz".format(name)
+path = "mpol{}6.900.npz".format(name)
 
 data = np.load(datapath + path)
 K = np.load(datapath + "K{}.npy".format(name))

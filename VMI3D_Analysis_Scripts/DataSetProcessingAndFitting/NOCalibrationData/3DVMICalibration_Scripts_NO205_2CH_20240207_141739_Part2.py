@@ -1,7 +1,7 @@
 #%% Imports
 
 import os
-os.chdir(r'C:\Users\Scott\Python\VMI\src')
+os.chdir(r'../../..')
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,7 +18,7 @@ keau = ke/27.211 # in a.u.
 pol = 'H' # polarization direction (H: along x axis)
 dToF = 0.100 # 50 ps time resolution
 
-name = "Ssu"
+name = "Ss"
 
 fs = 7 # fontsize
 plt.rcParams['figure.dpi'] = 100

@@ -1,8 +1,5 @@
 #%% Imports
 
-import os
-os.chdir(r'../..')
-
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as ss
@@ -14,8 +11,8 @@ import sgolay2
 
 datapath = r"C:\Users\Scott\Python\VMI\data\20240418_VMI3DPaperData2/"
 
-dpath = "213/213_20240207_141739_old/mpolAs000M.npz"
-spath = "sim_mpol_4_13.npz"
+dpath = "213/213_20240207_141739/mpolSs000M.npz"
+spath = "sim_mpol_4_12.npz"
 
 data = np.load(datapath + dpath)
 sim = np.load(datapath + spath)

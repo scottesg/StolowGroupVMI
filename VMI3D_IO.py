@@ -2,6 +2,7 @@ import numpy as np
 from scipy.io import loadmat
 import glob
 import itertools
+import tekwfm
 from shutil import copyfile
 from scipy.ndimage import gaussian_filter
 
@@ -12,6 +13,18 @@ def readimg(file, dim):
     nimg = int(len(a)/dim**2)
     a = np.reshape(a,(nimg,dim,dim))
     return np.transpose(a, (0,2,1))
+
+def imgfromfile(file, dim, n=None):
+    
+    if n:
+        file.seek(0)
+        offset = n*dim*dim
+        img = np.fromfile(file, dtype=np.uint8, offset=offset, count=dim*dim)
+    else:
+        img = np.fromfile(file, dtype=np.uint8, count=dim*dim)
+    
+    img = np.reshape(img, (dim, dim))
+    return [img]
 
 def readcsv(file):
     return np.genfromtxt(file, delimiter=',');
@@ -43,6 +56,10 @@ def readwfm(file, dqdim, groupstks=False, ch2=False):
         if ch2:
             traces = [traces, refs]
         
+    elif file.endswith(".wfm"): # tek wfm file
+        volts, tstart, tscale, tfrac, tdatefrac, tdate = tekwfm.read_wfm(file);
+        traces = np.transpose(volts)
+            
     elif file.endswith(".wfm.npy"): # unpacked npy file
         traces = np.load(file)
         
@@ -69,6 +86,10 @@ def readwfm(file, dqdim, groupstks=False, ch2=False):
             traces = np.vstack([traces[i] for i in range(0, len(traces))])
         
     return traces
+
+def rawdaqtovolts(datain, interval=1):
+    dy = 0.800 / (2**16)
+    return (datain[::interval].astype(float)-(2**15))*dy
 
 # Generate time array
 def genT(n, dt):
@@ -197,7 +218,7 @@ def groupctrstks(ctrs, stksize):
 # Rough values only using maxima of the rois
 def readrois(file, nframe):
     
-    if '*' in file:
+    if (type(file) is str) and ('*' in file):
         nf = len(glob.glob(file))
         file = file.replace('*','{}')
         data = []
@@ -208,7 +229,7 @@ def readrois(file, nframe):
             fdata[:,3] += 4000*i
             data.extend(fdata)
     
-    elif file.endswith(".single"):
+    elif (type(file) is not str) or file.endswith(".single"):
         data = []
         for i in range(1, nframe+1):
             dataframe = readroiframe(file, i)
@@ -225,24 +246,37 @@ def readrois(file, nframe):
 #         nrois: number of rois in the frame
 def readroiframe(file, frame, roidim=31, maxrois=20):
     
+    fopen = False
+    if type(file) is str:
+        file = open(file, 'rb')
+        fopen = True
+    
     rois = np.zeros((maxrois, roidim, roidim), dtype=np.single)
     xpos = np.zeros(maxrois, dtype=np.uint16)
     ypos = np.zeros(maxrois, dtype=np.uint16)
     
-    roiblk = (roidim * roidim + 12) # 973 for roidim = 31
+    roisize = roidim * roidim
+    roiblk = (roisize + 12) # 973 for roidim = 31
     frmblk = roiblk * maxrois # 19232 for maxrois = 20
     frmoffset = frmblk * (frame - 1)
     
+    file.seek(0)
     nrois = np.fromfile(file, dtype=np.single, offset=frmoffset, count=1)[0]
     if nrois > 0:
         for i in range(0, int(nrois)):
-            roisize = roidim * roidim
             step = frmoffset + roiblk * i
+            
+            file.seek(0)
             ypos[i] = np.fromfile(file, dtype=np.single, offset=step+4, count=1)
-            xpos[i] = np.fromfile(file, dtype=np.single, offset=step+8, count=1)
-            roi = np.fromfile(file, dtype=np.uint8, offset=step+12, count=roisize)
+            xpos[i] = np.fromfile(file, dtype=np.single, offset=0, count=1)
+            roi = np.fromfile(file, dtype=np.uint8, offset=0, count=roisize)
+            
             roi = np.reshape(roi, (roidim, roidim))
             rois[i, :, :] = roi
+    
+    if fopen:
+        file.close()
+    
     return xpos, ypos, rois, nrois
 
 # Converts the output of readroiframe to an array of xyi data (for rough preview)
