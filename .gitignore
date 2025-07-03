@@ -1,6 +1,11 @@
 # DAVIS matrices
 DAVIS/
 
+# Manual
+manual/*
+!manual.tex
+!manual.pdf
+
 # Thesis
 thesis/
 

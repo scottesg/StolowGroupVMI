@@ -1,0 +1,254 @@
+\documentclass[12pt]{article}
+
+\title{Python Code Package for 3D VMI Data Acquisition and Analysis}
+\author{Scott Goudreau}
+
+\usepackage[bottom=2.0cm, right=1.5cm, left=1.5cm, top=2.0cm]{geometry}
+
+\usepackage{amsmath,amssymb,amstext,amsfonts} % Math symbols and environments
+\usepackage{graphicx} % For including graphics
+\usepackage{caption} % Figure captions
+
+\setkeys{Gin}{width=0.98\textwidth} % default width of graphics
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+In this document, I will outline the main functions of my python 3D VMI code, describing how one might use it to fully collect and process data obtained from the NRC/uOttawa 3D VMI spectrometer.
+I will address each part of the code in the order that it would be typically used when acquiring and processing a new data set.
+The code discussed here is hosted on the Stolow Group GitHub repository.
+
+\section{Acquiring Data}
+
+The first step it to acquire 3D VMI data, which consists of camera images and digitizer waveform data.
+While setting up the experiment, one might want to adjust experimental parameters to optimize things like hit count per laser shot, signal-to-noise ratio, etc.
+During this process, it is helpful to have a preview of the incoming data.
+
+\subsection{\texttt{VMI3D\_LivePreview.py}} 
+
+This is a script which shows a constant stream of live frames from the camera, as well as some helpful diagnostic information to help with optimizing the experiment (shown in Fig. \ref{fig:LivePreview}).
+It was based on a similar script that was part of the Matlab 3D VMI code package.
+The preview is not able to display data at the experimental frame rate of 1~kHz.
+Instead, it pulls frames from the camera at a rate specified by the parameter \textbf{PAUSETIME}.
+The preview shows the raw (\textbf{DISPLAY\_FILTERED\_IMAGE} = False) or smoothed and projection-subtracted (\textbf{DISPLAY\_FILTERED\_IMAGE} = True) image in the top left panel.
+It then finds and extracts regions of interest (ROIs) and shows (top middle panel) the detected ROIs for the frame (the ROI threshold is set by \textbf{EXTROI\_THRESH}).
+The coordinates of the ROIs are stored and a cumulative image of all detected ROIs is shown in the top right panel.
+This helps visualize the full VMI image being detected.
+The bottom left panel shows a cumulative histogram of hit counts from all prior frames.
+Finally, the bottom right panel shows the hit count over time for the last 100 frames (the number of frames on screen is set by \textbf{HITCOUNTWINDOW}).
+
+The Live Preview has a few keyboard controls, which are printed out when the script starts.
+It can be (s)topped, (p)aused, (u)npaused, or (r)eset.
+Most of these are easily understood.
+The reset command clears the memory of all previous frames and starts accumulating new data.
+This is useful if one makes a change to the experimental conditions and wants to see a fresh cumulative image or hit count histogram.
+
+Currently, the Live Preview is not fully set up to connect to the camera.
+This is a work in progress.
+At the time of writing, one can specify only previously-saved image or ROI data for the script to run on.
+ 
+\begin{figure}
+\centering
+\includegraphics{LivePreview.png}
+\caption{
+Appearance of the Live Preview script while running.
+}\label{fig:LivePreview}
+\end{figure}
+ 
+\subsection{\texttt{VMI3D\_DAS2C.py}}
+
+Acquiring 3D VMI data is done through this script, based on the Matlab version written by Doug Moffatt.
+Running this script will create a folder (named after the current date and time) in the specified data directory.
+It then collects and saves image and waveform data based on a set of user-supplied parameters (number of runs, run size, camera settings, etc.) near the top of the script.
+This script collects two-channel data from the digitizer card, with the pickoff on one channel and the photodiode pickoff on the other channel.
+
+While running, the script displays feedback from each run in the form of a series of plots.
+These include an integrated 2D VMI image, a cross correlation between the camera and digitizer data, a 2D image of stacked 1D waveform data, and an average of all of the waveforms.
+These are updated after each run is collected so that the quality of the data can be monitored during an experiment.
+
+\section{Processing the Data}
+
+The main steps data processing include: centroiding the raw ROIs to obtain coordinates and amplitude for each event, peak-finding the waveform data to obtain time stamps and amplitude for each event, and performing assignment of the spatial and temporal coordinates to obtain 3D VMI data in the form of ($x$, $y$, $t$) coordinates for each event.
+These steps should be performed using the following scripts.
+
+\subsection{Step 1: Centroiding the Image Data}
+
+The script \texttt{VMI3D\_Centroiding.py} will centroid all of the data contained in the current folder.
+The folder should contain one or more sub-folders named "run1", "run2", etc., as is created by the acquisition script \texttt{VMI3D\_DAS2C.py}.
+Each of these run folders should contain a file (roisposb1.single) containing the real-time ROI data, and the average projection of the images along the $x$-axis (projsb1.int16).
+Both of these files should be created when running the acquisition script.
+
+The centroids will be saved in each run sub-folder as "ctrs.npy".
+One must specify the number of frames per run (\textbf{nframes}) which may change between experiments.
+Other parameters will likely remain unchanged.
+Optionally, \textbf{fastctrs} can be set to True to get faster (but far less accurate) centroids.
+
+\subsection{Step 2: Peak-Finding the Waveform Data}
+
+There are two scripts for extracting time-stamps from the waveform data, depending on whether the data using two channels (separate data and reference pulse) or a single channel (combined data and reference pulse).
+These scripts are \texttt{VMI3D\_PeakFind\_2Ch.py} and \texttt{VMI3D\_PeakFind\_1Ch.py}.
+The use of both scripts are similar, so I will only discuss the two-channel version in detail.
+
+At this point, the data directory should be restructured.
+All of the centroids files for each run should be moved into a single directly "ctr/" and numbered as "ctrs1.npy", "ctrs2.npy", etc.
+The same should be done with the raw waveform data, which should be moved to "wfm/" and numbered as "daqdata1.uint16" "daqdata2.uint16", etc.
+There are functions located in \texttt{VMI3D\_IO.py} called \textit{copywfms} and \textit{copyctrs} which can help with this.
+
+One might need to change some of the parameters at the top of the peak-finding script, such as the number of shots per run (\textbf{stksize}), the length of each trace (\textbf{tracelen}), and the approximate position (\textbf{t00}) or width (\textbf{refwidth}) of the reference peak.
+The other parameters will probably not change.
+
+The scripts are divided into blocks which should be run one-at-a-time to evaluate the results before proceeding to the next.
+At the top of the first block (step 0), one must specify the data directory to be processed.
+This step extracts an average zero-hit background and an average reference peak, then creates a filter function incorporating both of these as well as Gaussian smoothing.
+The average reference peak and background are displayed after running, so ensure these are acceptable before proceeding.
+
+The second block (step 1) extracts and displays an average single hit function.
+As before, ensure this is acceptable before proceeding.
+
+The final block (step 2) performs the full peak-finding process on all of the data in the specified folder.
+This is a time-consuming task, so first set the \textbf{test} variable to True and run the block.
+This will show the peak-finding results for the first 20 traces.
+Examine these to make sure everything is working correctly.
+In particular, one may want to change the \textbf{SNR} variable to change the peak detection threshold.
+If you wish to look at traces other than the first 20, you can change the starting run (\textbf{n0}) or trance number (\textbf{idx0}).
+Once the performance is as desired, change \textbf{test} to False and run the block.
+The peaks for each run are saved in text form in a folder called "hits/" in the data directory and are named "THits\_1.txt", "THits\_2.txt", etc.
+
+\subsection{Step 3: Assigning Time-Stamps}
+
+The assignment step is performed by running the script \texttt{VMI3D\_AssignHits.py}.
+This script is also divided into blocks.
+In general, one should proceed by running each block in order.
+Under the "Paths and Parameters" block, the data directory should be specified.
+If one wishes to attempt the assignment multiple times with different parameters, the \textbf{name} variable can be changed which will save the results in a different sub-directory.
+As usual, \textbf{stksize} should be set to the number of shots per run.
+It is also important to set the \textbf{dt} variable to the correct time step (0.5 for two-channel data, 0.25 for one-channel data).
+
+The next block will combine the text files created by the time-stamping script into a single numpy file containing the hits from all runs.
+Note that the number of runs must be set using the \textbf{n} variable.
+
+In some runs, the shot numbering of the camera and digitizer data is offset.
+This offset must be detected for each run so that the time-stamps can be assigned to the correct centroids.
+The next block checks for these offsets and saves them for use in later steps.
+It shows a plot with the detected offsets and the associated correlation amplitudes.
+The offsets should either be 1 or 0, and the amplitudes should be relatively constant.
+
+The next block performs the initial time-stamping of the single-hit data.
+While running, it prints out the number of detected hits for each run.
+After completion, some diagnostic images are produced, including a VMI image from all of the single-hit centroids, and pulse-height distributions for the camera and digitizer data.
+It also produces a histogram of event arrival times.
+Importantly, it shows the correlation plot of camera and digitizer amplitudes for the single-hit data (the SHAD).
+The SHAD will not be particularly narrow at this stage, but the correlation should be clear.
+The single-hit assigned data is saved as a ".pt.npy" file along with a text log file ".params.txt" containing the parameters used in the analysis.
+
+The next two blocks perform (and save) the correction for a spatially-varying slope over the MCP, which will result in a much more narrow SHAD.
+One must specify the grid dimension for the correction (\textbf{gsize}) and the minimum number of hits that must be in one of the spatial bins for a slope to be calculated (\textbf{tilelim}).
+You can run the first of these two blocks until satisfied, then run the second block to save the result.
+
+The next two blocks shows (and saves) a movie of the single-hit data.
+One must correctly set the time range of the movie.
+The time histogram produced above can help with this.
+The number of frames, speed, and smoothing can also be set.
+
+The next block performs a series of fits to characterize the SHAD.
+However, this step is not necessary since the following step now uses the SHAD directly with no need for fitting.
+If one wishes to use the fit-based treatment in the next step, this block must be used first.
+
+The final major block ("Load3D with correlation") performs the full assignment of the multi-hit data.
+Currently, the only parameter one might wish to change here is the maximum number of hits per shot (\textbf{nctrmax}) to attempt to assign.
+The maximum recommended value is 20, however, one can speed up the processes by lowering this value.
+The multi-hit assigned data is saved as a "C.pt.npy" file along with a text log file "C.params.txt" containing the parameters used in the analysis and some additional statistics.
+This analysis also saves a ".bad.npy" file containing all of the centroid which were not able to be time-stamped, and a ".csc.npy" file containing additional information about the assignment results for each shot.
+
+The final blocks after this produce another movie, this time using the full multi-hit data set.
+The usage is the same as the movie above, except that one can now specify a rotation angle to apply to the data.
+
+\section{Analyzing the Data}
+
+The analysis of the data is less structured, since it depends on what the user's objectives are.
+I will instead provide instructions on how to perform a 'standard' analysis.
+The scripts for these steps are not as generalized as the ones above.
+Instead of having a single script that can be pointed at the data and executed, it is better to make copies of existing scripts and adjust them to fit the desired analysis.
+
+The scripts I will use as examples in the following are:
+
+\noindent
+\texttt{3DVMICalibration\_Scripts\_NO205\_2CH\_20240207\_141739.py},
+
+\noindent
+\texttt{3DVMICalibration\_Scripts\_NO205\_2CH\_20240207\_141739\_Part2.py}, 
+
+\noindent
+\texttt{3DVMICalibration\_Scripts\_NO205\_2CH\_20240207\_141739\_Rot.py}, and 
+
+\noindent
+\texttt{3DVMICalibration\_Scripts\_NO205\_2CH\_20240207\_141739\_betafit.py}
+
+These scripts are for analysis of two-channel data and begins from where the processing left off, with the ".pt.npy" assigned data file (renamed in this case to "dataS.npy").
+Since these scripts were edited to suit a particular analysis and weren't written with the intention of being reused as they are, the following instructions should be taken as a general approach to the analysis rather than a rigid set of instructions.
+
+\subsection{Rotational Alignment}
+
+In general, the data will need to be rotated to align with the experimental axes.
+Note that this process requires an existing momentum calibration function.
+If no such function currently exists, use approximate values for the angles for now and skip to the next section.
+After preparing a calibration function, return here and properly fit the rotational angles.
+
+In the first script, \texttt{...20240207\_141739.py}, we first set the XY-plane rotation angle (\textbf{rotangle}) to 0 so it can be determined later.
+Also specify the approximate time centre (\textbf{t0}), image centre (\textbf{cen}), and approximate time duration of the Newton sphere (\textbf{dt}).
+The shuffle-based covariance method (\textbf{covshuffle} = True) is faster and has a similar performance to the slow method.
+The script starts by trimming the data to a \textbf{dt}-sized window, moves the distribution so the centre is at a value of \textbf{T0}, centers the distribution in space, and rotates it (although not at the moment, since we have set the angle to 0).
+The first plot in the script can help to optimize the time-centre (\textbf{t0}) and window (\textbf{dt}).
+The following covariance treatment removes statistically insignificant data and saves the remaining data.
+There are plots here which show the results of the covariance.
+There is also a plot which shows a center time-slice through the distribution, and can be used to optimize the spatial centre (\textbf{cen}).
+At this stage we stop progressing through this script and open the second script: \texttt{...20240207\_141739\_Part2.py}.
+
+The covariance results, saved as "...P.npz" are loaded in to the "part 2" script.
+This script produces Cartesian and polar momentum and energy maps of the data.
+The code block which produces the polar maps contains the rotation angles which are to be applied to the polar data.
+The polar rotation angle \textbf{a} represents rotation about the $y$ axis and should be set to 0 for this step.
+After running the polar map block, the results are saved as "...000.npz".
+
+We then open the third script \texttt{...20240207\_141739\_Rot.py}.
+This script loads the zero-rotation polar momentum map and fits Legendre polynomials to determine the correct rotation angles to align with the experimental axes.
+One can adjust the widths of the momentum and angular slices here if desired.
+After running this script with the path pointing to the "...000.npz" file produced in the previous step, the results should be displayed in a figure like Fig. \ref{fig:RotationAngles}.
+Take note of these angles.
+The XY-slice angle should be entered as the variable \textbf{rotangle} in the first script.
+The XZ-slice angle should be entered as the variable \textbf{a} in the polar map block in the "part 2" script.
+The first script should then be run again to the same point as before with the changed angle.
+
+\begin{figure}
+\centering
+\includegraphics{RotationAngles.png}
+\caption{
+Result of running the script "...20240207\_141739\_Rot.py".
+}\label{fig:RotationAngles}
+\end{figure}
+
+\subsection{Preparing the Calibration Function}
+
+The remaining part of the first script fits the momentum distribution to obtain a calibration for reconstructing the initial momentum vectors.
+If you wish to do this for the current data set, resume running the script from the "Find 2D radius" block.
+This block fits the radial distribution of the central slice data to obtain the maximum radius of the slice.
+In the next block, the 2D calibration constant \textbf{K} is calculated from the 2D radius and the known kinetic energy of the feature \textbf{ke}. 
+The code blocks after this fit slices through the transverse momentum ($p_\perp$) VS time plot to obtain coordinates ($p_\perp$, $t$) describing the feature.
+The widths, positions, and number of slices can be adjusted here.
+Once these coordinates are found, the transverse momentum is converted into longitudinal momentum ($p_z$) using the known energy.
+Finally, the calibration function is found by fitting $p_z$ VS $t$ using a second order polynomial, as shown in Fig. \ref{fig:CalibrationFunction}.
+
+\begin{figure}
+\centering
+\includegraphics{CalibrationFunction.png}
+\caption{
+Example of fitting a calibration function. Note that this not an optimized result.
+}\label{fig:CalibrationFunction}
+\end{figure}
+
+\subsection{Gain Correction and Mirroring}
+
+\end{document}

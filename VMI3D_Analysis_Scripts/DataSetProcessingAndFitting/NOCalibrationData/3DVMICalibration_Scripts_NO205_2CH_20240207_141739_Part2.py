@@ -64,7 +64,7 @@ Ct = np.zeros(len(Pt))
 for i in range(len(pt)):
     if i % 10000 == 0: print("pt #{} / {}".format(i, len(pt)))
     
-    # conver to momentum
+    # convert to momentum
     px = K*pt[i,0]
     py = K*pt[i,1]
     pz = calpoly(pt[i,2])

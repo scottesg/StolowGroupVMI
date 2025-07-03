@@ -208,11 +208,17 @@ idx0 = 0 # starting trace within stack
 nsize = 4 # number of runs to process
 n0 = 0 # number of run to start with
 
-debug = False
-if debug:
+test = True
+if test:
     nbad = 0
     nsize = 1
     ntrace = 20
+else:
+    # Create the output directory
+    if os.path.exists(datapath+source+"/hits"):
+        print("Warning: Hits directory already exists!")
+    else:
+        os.mkdir(datapath+source+"/hits")
     
 for l in range(nsize):
     print("Processing stack {}...".format(l+1+n0))
@@ -239,7 +245,7 @@ for l in range(nsize):
         hits, P = result
         THits[i,:len(hits)] = hits
         
-        if debug and THits[i,0]>0:
+        if test and THits[i,0]>0:
         
             #plot each fit to find the minimum pulse-pair resolution 
             #roughly equal to 0.6ns see for instance index 67, 7
@@ -264,7 +270,7 @@ for l in range(nsize):
                 plt.xlim(3050, 3200) # might need to zoom out to see all events
                 plt.ylim(0, 0.25)
     
-    if debug:
+    if test:
         print("Number of Bad Fits: %d"%(nbad))
     else:
         # save results

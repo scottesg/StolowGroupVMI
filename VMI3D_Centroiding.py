@@ -16,7 +16,7 @@ nframes = 4000
 roidim = 31
 maxrois = 20
 ism = 3
-fastctrs = True
+fastctrs = False
 
 # Testing
 # pathi = r"C:\Users\Scott\Python\VMI\documents\DSC\20250528_202054"
