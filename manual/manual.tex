@@ -1,6 +1,8 @@
 \documentclass[12pt]{article}
 
-\title{Python Code Package for 3D VMI Data Acquisition and Analysis}
+\def\version{---1.0---}
+
+\title{Python Code Package for 3D VMI \\ Data Acquisition and Analysis \\ \version}
 \author{Scott Goudreau}
 
 \usepackage[bottom=2.0cm, right=1.5cm, left=1.5cm, top=2.0cm]{geometry}
@@ -17,13 +19,14 @@
 
 \section{Introduction}
 
-In this document, I will outline the main functions of my python 3D VMI code, describing how one might use it to fully collect and process data obtained from the NRC/uOttawa 3D VMI spectrometer.
+In this document, I will outline the main functions of my python 3D VMI code, describing how one might use it to fully collect, process, and analyze data obtained from the NRC/uOttawa 3D VMI spectrometer.
+Additional description of the techniques used here are contained in my PhD thesis.
 I will address each part of the code in the order that it would be typically used when acquiring and processing a new data set.
-The code discussed here is hosted on the Stolow Group GitHub repository.
+The code discussed here is hosted on the Stolow Group GitHub repository (\texttt{https://github.com/scottesg/StolowGroupVMI}).
 
 \section{Acquiring Data}
 
-The first step it to acquire 3D VMI data, which consists of camera images and digitizer waveform data.
+The first step is to acquire 3D VMI data, which consists of camera images and digitizer waveform data.
 While setting up the experiment, one might want to adjust experimental parameters to optimize things like hit count per laser shot, signal-to-noise ratio, etc.
 During this process, it is helpful to have a preview of the incoming data.
 
@@ -212,6 +215,8 @@ This script produces Cartesian and polar momentum and energy maps of the data.
 The code block which produces the polar maps contains the rotation angles which are to be applied to the polar data.
 The polar rotation angle \textbf{a} represents rotation about the $y$ axis and should be set to 0 for this step.
 After running the polar map block, the results are saved as "...000.npz".
+If you wish to apply mirroring to the data, the following block can be used.
+This will mirror the data according to the specified angular indices and save the result as "...000M.npz".
 
 We then open the third script \texttt{...20240207\_141739\_Rot.py}.
 This script loads the zero-rotation polar momentum map and fits Legendre polynomials to determine the correct rotation angles to align with the experimental axes.
@@ -235,7 +240,7 @@ Result of running the script "...20240207\_141739\_Rot.py".
 The remaining part of the first script fits the momentum distribution to obtain a calibration for reconstructing the initial momentum vectors.
 If you wish to do this for the current data set, resume running the script from the "Find 2D radius" block.
 This block fits the radial distribution of the central slice data to obtain the maximum radius of the slice.
-In the next block, the 2D calibration constant \textbf{K} is calculated from the 2D radius and the known kinetic energy of the feature \textbf{ke}. 
+In the next block, the 2D calibration constant \textbf{K} is calculated (and saved) from the 2D radius and the known kinetic energy of the feature \textbf{ke}. 
 The code blocks after this fit slices through the transverse momentum ($p_\perp$) VS time plot to obtain coordinates ($p_\perp$, $t$) describing the feature.
 The widths, positions, and number of slices can be adjusted here.
 Once these coordinates are found, the transverse momentum is converted into longitudinal momentum ($p_z$) using the known energy.
@@ -250,5 +255,54 @@ Example of fitting a calibration function. Note that this not an optimized resul
 \end{figure}
 
 \subsection{Gain Correction and Mirroring}
+
+Using a calibration source with known energy and angular distribution, we can create a radial correction function to account for the common gain degradation near the centre of the MCP.
+The first step is to create a simulated data set that mimics the calibration feature.
+For this, we use the script \texttt{gaincorrection\_simulation.py}.
+We first specify the energy (\textbf{eref}), bandwidth (\textbf{dp}) and asymmetry parameter $\beta_2$ (\textbf{beta}).
+Currently, this simulation only allows $\beta_2$, but it could be easily generalized to higher order asymmetry parameters.
+This simulated data will be compared directly to the experimental data, which will in general have a rotational offset as determined above.
+We specify the XZ-plane rotation (\textbf{a}) so it can be applied to the simulated data. 
+Note that the angle here must be the negative of the angle used in the script above.
+Running this script will now produce a simulated distribution with the specified parameters.
+It will be saved as "mod\_X\_Y.npz" where X is the rotation angle and Y is the $\beta_2$ multiplied by 100.
+
+Next, we compare this simulated data set with the corresponding experimental one to derive the correction function.
+This is done using the script \texttt{gaincorrection\_fig.py}.
+Here, we specify the paths of the simulated data set (\textbf{spath}), the experimental zero-rotation ("...000.npz" or, if mirrored, "...000M.npz") data (\textbf{dpath}), and the 2D VMI calibration constant K (\textbf{kpath}).
+This script will normalize both the simulated and experiential data sets, show the ratio of them, then extract the radial dependence of the gain.
+A damping function is then fit to the radial gain dependence and saved for later use.
+This process is shown in Fig. \ref{fig:GainCorrection}.
+
+\begin{figure}
+\centering
+\includegraphics{GainCorrection.png}
+\caption{
+Example of fitting a gain correction function.
+}\label{fig:GainCorrection}
+\end{figure}
+
+Once the correction function is saved, we move back to the "part 2" script to apply the correction.
+This script can now be run all the way through, making sure that the rotation angle \textbf{a} has been correctly set and that the path for the radial gain correction is specified (after the first mirroring block).
+This will save a polar momentum map of the data with and without mirroring (is desired) and with and without the radial gain correction.
+
+\subsection{Fitting the Asymmetry Parameters}
+
+Fitting asymmetry parameters to the data set is done using the script \texttt{...20240207\_141739\_betafit.py}.
+Begin by specifying the path to the polar momentum map that you wish to fit as well as the constant \textbf{K}.
+This script will extract a slice in total momentum which includes the feature of interest, then fit the entire integrated distribution as well as multiple angular slices through it.
+You can specify here the width of the momentum slice (\textbf{n0}) and angular slices (\textbf{nth}).
+The kinetic energy of the feature (\textbf{ke}) will also need to be set.
+From here, simply running the script will produce a plot similar to Fig. \ref{fig:BetaFit}.
+The $\beta_2$ and $\beta_4$ values are shown for the integrated distribution, XY- and XZ- slices.
+In addition, the variation in asymmetry parameters are shown with 10-degree slices through the entire distribution.
+
+\begin{figure}
+\centering
+\includegraphics{BetaFit.png}
+\caption{
+Example of fitting asymmetry parameters to an experimental data set.
+}\label{fig:BetaFit}
+\end{figure}
 
 \end{document}
