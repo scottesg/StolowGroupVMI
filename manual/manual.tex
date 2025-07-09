@@ -1,6 +1,6 @@
 \documentclass[12pt]{article}
 
-\def\version{---1.0---}
+\def\version{---1.1---}
 
 \title{Python Code Package for 3D VMI \\ Data Acquisition and Analysis \\ \version}
 \author{Scott Goudreau}
@@ -34,8 +34,16 @@ During this process, it is helpful to have a preview of the incoming data.
 
 This is a script which shows a constant stream of live frames from the camera, as well as some helpful diagnostic information to help with optimizing the experiment (shown in Fig. \ref{fig:LivePreview}).
 It was based on a similar script that was part of the Matlab 3D VMI code package.
+
 The preview is not able to display data at the experimental frame rate of 1~kHz.
-Instead, it pulls frames from the camera at a rate specified by the parameter \textbf{PAUSETIME}.
+Instead, it pulls frames from the camera at a rate (inversely) specified by the parameter \textbf{PAUSETIME}.
+The maximum framerate of the preview is about 3 fps, limited by the time required to plot the data after each frame.
+To run the preview at maximum framerate, set \textbf{PAUSETIME} to a small value such as 0.01 (seconds).
+Note that \textbf{PAUSETIME} must be non-zero to allow the plots to update properly.
+If a faster framerate is needed, the variable \textbf{NUM\_BURST\_FRAMES} can be set to a value greater than 1.
+This will cause the preview to grab that many frames from the camera between updates (instead of just 1).
+Each of these frames will be analyzed and their centroids will be added to the total (as described below), but only the last frame in the set will be displayed in the preview.
+
 The preview shows the raw (\textbf{DISPLAY\_FILTERED\_IMAGE} = False) or smoothed and projection-subtracted (\textbf{DISPLAY\_FILTERED\_IMAGE} = True) image in the top left panel.
 It then finds and extracts regions of interest (ROIs) and shows (top middle panel) the detected ROIs for the frame (the ROI threshold is set by \textbf{EXTROI\_THRESH}).
 The coordinates of the ROIs are stored and a cumulative image of all detected ROIs is shown in the top right panel.
@@ -49,10 +57,14 @@ Most of these are easily understood.
 The reset command clears the memory of all previous frames and starts accumulating new data.
 This is useful if one makes a change to the experimental conditions and wants to see a fresh cumulative image or hit count histogram.
 
-Currently, the Live Preview is not fully set up to connect to the camera.
-This is a work in progress.
-At the time of writing, one can specify only previously-saved image or ROI data for the script to run on.
- 
+For testing purposes, it is possible to run the preview on previously-saved image or ROI data.
+This is done by setting the \textbf{TESTSOURCE\_IMG} or \textbf{TESTSOURCE\_ROI} path and  uncommenting the appropriate \texttt{pv.set\_source} line in the main function.
+
+Camera streaming is enabled by default.
+The camera parameters are set by the variables \textbf{CAM\_EXPOSURE}, \textbf{CAM\_FRAMERATE}, \textbf{CAM\_OFFSET\_X}, and \textbf{CAM\_OFFSET\_Y}.
+Note that only certain values are valid for the offset parameters.
+Some values will cause the script to fail, while other values may cause bugs in the frame data.
+
 \begin{figure}
 \centering
 \includegraphics{LivePreview.png}
