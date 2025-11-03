@@ -50,7 +50,7 @@ EXTROI_THRESH = 0.15
 
 FRAMECTR_SMOOTH = 5
 FULLCTR_SMOOTH = 2
-PAUSETIME = 0.01
+PAUSETIME = 0.01 # seconds
 
 HISTBINS = np.arange(0.5, 20.5)
 
@@ -385,10 +385,12 @@ if __name__ == "__main__":
     pv = LivePreview()
     frames = []
 
-    #pv.set_source(SOURCETYPE_ROI, TESTSOURCE_ROI)
-    #pv.set_source(SOURCETYPE_IMG, TESTSOURCE_IMG)
     pv.set_source(SOURCETYPE_CAM_FREE, None)
     #pv.set_source(SOURCETYPE_CAM_TRIG, None)
+
+    # Testing sources:
+    #pv.set_source(SOURCETYPE_ROI, TESTSOURCE_ROI)
+    #pv.set_source(SOURCETYPE_IMG, TESTSOURCE_IMG)    
 
     pv.print_commands()
     
