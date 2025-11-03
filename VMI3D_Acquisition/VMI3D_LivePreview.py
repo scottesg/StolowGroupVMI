@@ -19,15 +19,18 @@ from EVT_Py import EVT_Py
 TESTSOURCE_ROI = r"C:\Python\testdata\run26/roispos1.single"
 TESTSOURCE_IMG = r"C:\Python\testdata\run26/evtdata1.uint8"
 
-SOURCETYPE_CAM = 1
-SOURCETYPE_ROI = 2
-SOURCETYPE_IMG = 3
+SOURCETYPE_CAM_FREE = 1
+SOURCETYPE_CAM_TRIG = 2
+SOURCETYPE_ROI = 3
+SOURCETYPE_IMG = 4
 
-NUM_BURST_FRAMES = 1
-CAM_EXPOSURE = 50
-CAM_FRAMERATE = 100
+NUM_ALLOCATED_FRAMES = 1
+CAM_EXPOSURE_FREE = 20000 #us
+CAM_EXPOSURE_TRIG = 900 #us
+CAM_FRAMERATE = 10
 CAM_OFFSET_X = 552
 CAM_OFFSET_Y = 356
+CAM_GAIN = 256
 
 DISPLAY_FILTERED_IMAGE = True
 IMAGEDIM = 512
@@ -39,17 +42,17 @@ FONTSIZE_T = 15
 FONTSIZE_LB = 12
 FONTSIZE_TK = 12
 
-HITCOUNTWINDOW = 200
+HITCOUNTWINDOW = 100
 
 EXTROI_SMOOTH = 5
 EXTROI_SIZE = 5
-EXTROI_THRESH = 0.18
+EXTROI_THRESH = 0.15
 
 FRAMECTR_SMOOTH = 5
 FULLCTR_SMOOTH = 2
 PAUSETIME = 0.01
 
-HISTBINS = np.arange(0.5, 15.5)
+HISTBINS = np.arange(0.5, 20.5)
 
 class LivePreview:
     
@@ -59,7 +62,6 @@ class LivePreview:
         self.source = None
         self.context = None
         self.stream_open = False
-        self.burstframes = []
         self.framenum = 1
         self.hitcount = []
         self.hitcounttime = []
@@ -187,7 +189,7 @@ class LivePreview:
                 self.isRunning = True
                 self.srctype = srctype
         
-        elif srctype==SOURCETYPE_CAM:
+        elif (srctype==SOURCETYPE_CAM_FREE) or (srctype==SOURCETYPE_CAM_TRIG):
                         
             # Locate camera
             evt_context = EVT_Py.EvtContext()
@@ -216,23 +218,39 @@ class LivePreview:
                 self.source.open_stream()
                 self.stream_open = True
 
-                for _ in range(NUM_BURST_FRAMES):
+                for _ in range(NUM_ALLOCATED_FRAMES):
                     frame = self.source.allocate_frame()
-                    self.burstframes.append(frame)
+                    self.source.queue_frame(frame)
                 
                 self.source.execute_command("AcquisitionStart")
                 self.isRunning = True
         
+        else:
+            print("Source type not supported")
+            self.isRunning = False
+            
     def setup_camera(self):
         
-        self.source.set_param_uint32("Exposure", CAM_EXPOSURE)
-        self.source.set_param_uint32("FrameRate", CAM_FRAMERATE)
         self.source.set_param_uint32("Width", IMAGEDIM)
         self.source.set_param_uint32("Height", IMAGEDIM)
         self.source.set_param_uint32("OffsetX", CAM_OFFSET_X)
         self.source.set_param_uint32("OffsetY", CAM_OFFSET_Y)
+        self.source.set_param_uint32("Gain", CAM_GAIN)
         self.source.set_param_bool("HCG", True)
-    
+        
+        if self.srctype==SOURCETYPE_CAM_FREE:
+            self.source.set_param_uint32("Exposure", CAM_EXPOSURE_FREE)
+            self.source.set_param_uint32("FrameRate", CAM_FRAMERATE)
+            self.source.set_enum_str("TriggerMode", "Off")
+        elif self.srctype==SOURCETYPE_CAM_TRIG:
+            self.source.set_param_uint32("Exposure", CAM_EXPOSURE_TRIG)
+            self.source.set_enum_str("TriggerMode", "On")
+            self.source.set_enum_str("TriggerSource", "Hardware")
+            self.source.set_enum_str("GPI_End_Exp_Event", "Falling_Edge")
+        else:
+            print("Source type not supported")
+            self.isRunning = False
+                
     def get_next(self):
         
         framedata = None
@@ -245,13 +263,10 @@ class LivePreview:
             elif self.srctype==SOURCETYPE_IMG:
                 framedata = imgfromfile(self.source, IMAGEDIM)
             
-            elif self.srctype==SOURCETYPE_CAM:
-                framedata = []
-                for i in range(NUM_BURST_FRAMES):
-                    self.source.queue_frame(self.burstframes[i])
-                for i in range(NUM_BURST_FRAMES):
-                    frame = self.source.get_frame()
-                    framedata.append(self.convert_frame(frame))
+            elif (self.srctype==SOURCETYPE_CAM_FREE) or (self.srctype==SOURCETYPE_CAM_TRIG):
+                frame = self.source.get_frame()
+                self.source.queue_frame(frame)
+                framedata = self.convert_frame(frame)
             else:
                 print("Source type not supported")
                 self.isRunning = False
@@ -259,7 +274,7 @@ class LivePreview:
             print("ERROR: No data from source")
             self.isRunning = False
         else:
-            self.framenum += NUM_BURST_FRAMES
+            self.framenum += 1
 
         return framedata
     
@@ -290,48 +305,32 @@ class LivePreview:
         
         img = None
         
-        if self.srctype==SOURCETYPE_CAM:
-            for i in range(NUM_BURST_FRAMES):
-                img = np.array(framedata[i])
-                xpos, ypos, rois, nrois, imgs = extractrois(img, EXTROI_SMOOTH,
-                                                            EXTROI_SIZE, EXTROI_THRESH,
-                                                            MAXROIS, ROIDIM)
-                curtime = timer()
-                self.hitcount.append(nrois)
-                self.hitcounttime.append(curtime-self.timezero)
+        if self.srctype==SOURCETYPE_IMG:
+            img = framedata[0]
+            xpos, ypos, rois, nrois, imgs = extractrois(img, EXTROI_SMOOTH,
+                                                        EXTROI_SIZE, EXTROI_THRESH,
+                                                        MAXROIS, ROIDIM)
+            if DISPLAY_FILTERED_IMAGE:
+                img = imgs
             
-                ctrs = centroidFrameROIs(xpos, ypos, rois, int(nrois))
-                self.ctrs.extend(ctrs)
+        elif self.srctype==SOURCETYPE_ROI:
+            xpos, ypos, rois, nrois = framedata
             
-            self.frameratelive = round(NUM_BURST_FRAMES/(curtime - self.prevtime))
-            self.prevtime = curtime
+        elif (self.srctype==SOURCETYPE_CAM_FREE) or (self.srctype==SOURCETYPE_CAM_TRIG):
+            img = np.array(framedata)
+            xpos, ypos, rois, nrois, imgs = extractrois(img, EXTROI_SMOOTH,
+                                                        EXTROI_SIZE, EXTROI_THRESH,
+                                                        MAXROIS, ROIDIM)
+
+        curtime = timer()
+        self.frameratelive = round(1.0/(curtime - self.prevtime))
+        self.prevtime = curtime
         
-        else:
-            if self.srctype==SOURCETYPE_IMG:
-                img = framedata[0]
-                xpos, ypos, rois, nrois, imgs = extractrois(img, EXTROI_SMOOTH,
-                                                            EXTROI_SIZE, EXTROI_THRESH,
-                                                            MAXROIS, ROIDIM)
-                if DISPLAY_FILTERED_IMAGE:
-                    img = imgs
-                
-            elif self.srctype==SOURCETYPE_ROI:
-                xpos, ypos, rois, nrois = framedata
-            
-            else:
-                print("Source type not supported")
-                self.isRunning = False
-                return
-            
-            curtime = timer()
-            self.frameratelive = round(1.0/(curtime - self.prevtime))
-            self.prevtime = curtime
+        self.hitcount.append(nrois)
+        self.hitcounttime.append(curtime-self.timezero)
         
-            self.hitcount.append(nrois)
-            self.hitcounttime.append(curtime-self.timezero)
-        
-            ctrs = centroidFrameROIs(xpos, ypos, rois, int(nrois))
-            self.ctrs.extend(ctrs)
+        ctrs = centroidFrameROIs(xpos, ypos, rois, int(nrois))
+        self.ctrs.extend(ctrs)
         
         self.draw_rawimage(self.axs[0], img)
         self.draw_framectrs(self.axs[1], np.array(ctrs))
@@ -375,7 +374,7 @@ class LivePreview:
         if self.source:
             if (self.srctype==SOURCETYPE_ROI) or (self.srctype==SOURCETYPE_IMG):  
                 self.source.close()
-            elif self.srctype==SOURCETYPE_CAM:
+            elif (self.srctype==SOURCETYPE_CAM_FREE) or (self.srctype==SOURCETYPE_CAM_TRIG):
                 if self.stream_open:
                     self.source.execute_command("AcquisitionStop")
                     self.source.close_stream()
@@ -388,7 +387,8 @@ if __name__ == "__main__":
 
     #pv.set_source(SOURCETYPE_ROI, TESTSOURCE_ROI)
     #pv.set_source(SOURCETYPE_IMG, TESTSOURCE_IMG)
-    pv.set_source(SOURCETYPE_CAM, None)
+    pv.set_source(SOURCETYPE_CAM_FREE, None)
+    #pv.set_source(SOURCETYPE_CAM_TRIG, None)
 
     pv.print_commands()
     
